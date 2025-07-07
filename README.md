@@ -10,3 +10,4 @@ file to use them to render the block.
 
 Remember to add each new option to the default array in `block.php`.# dummyBlockTry
 # dummyBlockTry
+# dummyBlockTry
