@@ -9,3 +9,4 @@ See the `options.php` file to add more options to your block and the `block.php`
 file to use them to render the block. 
 
 Remember to add each new option to the default array in `block.php`.# dummyBlockTry
+# dummyBlockTry
