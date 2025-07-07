@@ -1,85 +1,177 @@
 <?php
 /*
- * Name: Dummy
- * Section: content
- * Description: A dummy block to learn how to code them
+ * שם: בלוק עמודות עם עורך טקסט
+ * תיאור: שתי עמודות, כל עמודה עם כותרת, תמונה מרובעת, ועורך טקסט עשיר
  */
 
-/* @var $options array */
-
-// On future releases of Newsletter, default options will be part of the options.php
-// file, it is the best place to have them. By now, be patience.
-
-// The "block_*" options are reserved and could be processed dutrectly by Newsletter. For example the
-// "block_background" and "block_padding_*" are used to generated the wrapper of the block content.
-
-$default_options = array(
-    'title' => 'Your stunning title',
-    'text' => 'Your nice text to describe whatever you want to describe.',
-
-    'block_padding_left' => 15,
-    'block_padding_right' => 15,
-    'block_padding_top' => 15,
-    'block_padding_bottom' => 15,
-    'block_background' => '', // Leave empty to use the block background set on the newsletter settings
-);
-
-$options = array_merge($default_options, $options);
-
-// Ok, this is a bit tricky and should be improved. $title_style and $text_style are object containing the merged font style between
-// that is configured in the block and what is configured in the newsletter settings. When a block font option is set to "default" the
-// global value is used.
-// The methods ask for: the block options, the option prefix to identify the block font settings (if the prefix is "title" the method will
-// look for options starting with "title_font_*". Then they need the $composer which contains the global options. The method "get_title_style"
-// takes from the global options the general style for titles and the method get_text_style takes from the global options the 
-// general style for text.
-
-$title_style = TNP_Composer::get_title_style($options, 'title', $composer);
-$text_style = TNP_Composer::get_text_style($options, 'text', $composer);
-
-
-// Image preparation (again, that is a bit tricky...)
-
-$media = null;
-if (!empty($options['image']['id'])) {
-    // The $media is an onject containing the image URL and the size to specify in the HTML tag. The image is resized at
-    // 2x to be sharp on mobile devices.
-    $media = tnp_resize_2x($options['image']['id'], [$composer['width'], 0]);
-    // Should never happen but... it happens
-    if (!$media) {
-        // Do something...
-    }
+if (!defined('ABSPATH')) {
+    exit;
 }
 
-// $options is processed with the wp_kses(...) so there is no need to escape it and that
-// allow a richer content with safe HTML tags.
+/* @var $options array */
+/* @var $composer array */
 
-?>
+$defaults = array(
+    'responsive' => '1',
+    'font_family' => 'Arial, \'Helvetica Neue\', Helvetica, sans-serif',
+    'font_size' => 14,
+    'font_color' => '',
+    'font_weight' => '',
+    'crop' => '3',
+    'block_padding_left' => 0,
+    'block_padding_right' => 0,
+    'block_padding_top' => 15,
+    'block_padding_bottom' => 15,
+    'block_background' => '',
+    'border-radius' => '',
+    'background-color' => '',
+    'border-color' => '',
+    'padding-left' => '',
+    'padding-right' => '',
+    'padding-top' => '',
+    'padding-bottom' => '',
+    'box-shadow-x' => '',
+    'box-shadow-y' => '',
+    'box-shadow-blur' => '',
+    'box-shadow-spread' => '',
+    'box-shadow-color' => '',
+);
+for ($i = 1; $i <= 2; $i++) {
+    $defaults['image_' . $i] = '';
+    $defaults['title_' . $i] = '';
+    $defaults['html_' . $i] = '';
+    $defaults['url_' . $i] = '';
+    $defaults['title_color_' . $i] = '#d2282f';
+    $defaults['title_size_' . $i] = 20;
+    $defaults['title_font_' . $i] = 'Tahoma,Verdana,Segoe,sans-serif';
+}
+$options = array_merge($defaults, $options);
 
-<?php
-// Here we define a single block style with classes that are then transoformed in inline styles. Style for fonts can be easily generated with
-// the object created above. The style block is REMOVED on rendering.
+// RTL & Hebrew
+$dir = 'rtl';
+$text_align = 'right';
+
+// Responsive grid
+$responsive = !empty($options['responsive']);
+$columns = 2;
+$grid_padding = 8;
+$content_width = $composer['content_width'] ?? 600;
+$column_width = floor(($content_width - $grid_padding * $columns * 2) / $columns);
+
+// Inline styles for email compatibility
+function tnp_dummyblock_column_style($options) {
+    $styles = [];
+    if (!empty($options['background-color'])) $styles[] = 'background-color:' . esc_attr($options['background-color']);
+    if (!empty($options['border-color'])) $styles[] = 'border:1px solid ' . esc_attr($options['border-color']);
+    if (!empty($options['border-radius'])) $styles[] = 'border-radius:' . intval($options['border-radius']) . 'px';
+    if (!empty($options['padding-top'])) $styles[] = 'padding-top:' . intval($options['padding-top']) . 'px';
+    if (!empty($options['padding-bottom'])) $styles[] = 'padding-bottom:' . intval($options['padding-bottom']) . 'px';
+    if (!empty($options['padding-left'])) $styles[] = 'padding-left:' . intval($options['padding-left']) . 'px';
+    if (!empty($options['padding-right'])) $styles[] = 'padding-right:' . intval($options['padding-right']) . 'px';
+    if (!empty($options['box-shadow-x']) || !empty($options['box-shadow-y']) || !empty($options['box-shadow-blur']) || !empty($options['box-shadow-spread']) || !empty($options['box-shadow-color'])) {
+        $x = intval($options['box-shadow-x'] ?? 0);
+        $y = intval($options['box-shadow-y'] ?? 0);
+        $blur = intval($options['box-shadow-blur'] ?? 0);
+        $spread = intval($options['box-shadow-spread'] ?? 0);
+        $color = esc_attr($options['box-shadow-color'] ?? '#000');
+        $styles[] = "box-shadow: {$x}px {$y}px {$blur}px {$spread}px {$color}";
+    }
+    $styles[] = 'direction:rtl;text-align:right;';
+    return implode(';', $styles);
+}
+
+function tnp_dummyblock_title_style($options, $i) {
+    $styles = [];
+    $font = $options['title_font_' . $i] ?? 'Tahoma,Verdana,Segoe,sans-serif';
+    $size = $options['title_size_' . $i] ?? 20;
+    $color = $options['title_color_' . $i] ?? '';
+    if ($color) $styles[] = 'color:' . esc_attr($color);
+    if ($size) $styles[] = 'font-size:' . intval($size) . 'px';
+    if ($font) $styles[] = 'font-family:' . esc_attr($font);
+    $styles[] = 'font-weight:bold';
+    $styles[] = 'margin-bottom:8px';
+    $styles[] = 'direction:rtl;text-align:right;';
+    return implode(';', $styles);
+}
+
+function tnp_dummyblock_passage_style($options) {
+    $font = $options['font_family'] ?? 'Arial, \'Helvetica Neue\', Helvetica, sans-serif';
+    $size = $options['font_size'] ?? 14;
+    $styles = [
+        'font-family:' . esc_attr($font),
+        'font-size:' . intval($size) . 'px',
+        'direction:rtl',
+        'text-align:right',
+        'margin:0',
+    ];
+    return implode(';', $styles);
+}
+
+// Column content
+$columns_html = [];
+for ($i = 1; $i <= 2; $i++) {
+    $image_html = '';
+    if (!empty($options['image_' . $i]['id'])) {
+        $image = tnp_resize_2x($options['image_' . $i]['id'], [250, 250, true]);
+        if ($image) {
+            $image->set_width(250);
+            $image->set_height(250);
+            $image_html = TNP_Composer::image($image);
+        }
+    }
+    $title = $options['title_' . $i] ?? '';
+    $html = $options['html_' . $i] ?? '';
+    $url = $options['url_' . $i] ?? '';
+    ob_start();
+    ?>
+    <div style="<?php echo tnp_dummyblock_column_style($options); ?>">
+        <?php if ($title) { ?>
+            <div style="<?php echo tnp_dummyblock_title_style($options, $i); ?>">
+                <?php echo esc_html($title); ?>
+            </div>
+        <?php } ?>
+        <?php if ($url) { ?>
+            <a href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:block;color:#d02932;">
+        <?php } ?>
+        <?php if ($image_html) { ?>
+            <div style="text-align:center;margin-bottom:10px;">
+                <?php echo $image_html; ?>
+            </div>
+        <?php } ?>
+        <?php if ($html) { ?>
+            <div style="<?php echo tnp_dummyblock_passage_style($options); ?>">
+                <?php echo wp_kses_post($html); ?>
+            </div>
+        <?php } ?>
+        <?php if ($url) { ?>
+            </a>
+        <?php } ?>
+    </div>
+    <?php
+    $columns_html[] = ob_get_clean();
+}
+
+// Responsive CSS (for web view, not email clients)
 ?>
 <style>
-    .title {
-        <?php $title_style->echo_css() ?>
+@media only screen and (max-width: 600px) {
+    .tnp-dummyblock-columns {
+        display: block !important;
     }
-    
-    .text {
-        <?php $text_style->echo_css() ?>
+    .tnp-dummyblock-column {
+        width: 100% !important;
+        display: block !important;
+        margin-bottom: 20px !important;
     }
+}
+.tnp-dummyblock-columns a { color: #d02932 !important; }
 </style>
-
-<?php
-// The attribute "inline-class" is then replaced with a "style" attribute with all rules of the referenced class. 
-?>
-
-<h1 inline-class="title"><?php echo $options['title']?></h1>
-
-<?php
-// This methos deal with CSS, attributes, link and so on. 
-?>
-
-<?php if ($media) echo TNP_Composer::image($media) ?>
-
-<p inline-class="text"><?php echo $options['text']?></p>
+<table class="tnp-dummyblock-columns" dir="rtl" width="100%" cellpadding="0" cellspacing="0" border="0" style="direction:rtl;text-align:right;width:100%;">
+    <tr>
+        <?php foreach ($columns_html as $col_html) { ?>
+            <td class="tnp-dummyblock-column" width="50%" valign="top" style="vertical-align:top;width:50%;padding:8px;direction:rtl;text-align:right;">
+                <?php echo $col_html; ?>
+            </td>
+        <?php } ?>
+    </tr>
+</table>
